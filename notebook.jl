@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.14.8
+# v0.15.1
 
 using Markdown
 using InteractiveUtils
@@ -49,16 +49,30 @@ begin
 	plotlyjs()
 end
 
+# ╔═╡ 5bafc48d-eb03-4625-8d87-17170133d999
+begin
+	just_test = true
+	n_sam = 100
+
+	use_gpu = false
+end
+
 # ╔═╡ e593f5a3-9c57-42e7-9ba5-fcf4f0c4bb76
 begin
-	n_sam = 100
 	train_x, train_y = MNIST.traindata()
 	test_x,  test_y  = MNIST.testdata()
 
-	train_x = coerce(train_x, GrayImage)[1:n_sam]
-	train_y = coerce(train_y, Multiclass)[1:n_sam]
-	test_x = coerce(test_x, GrayImage)[1:n_sam]
-	test_y = coerce(test_y, Multiclass)[1:n_sam]
+	if just_test
+		train_x = coerce(train_x, GrayImage)[1:n_sam]
+		train_y = coerce(train_y, Multiclass)[1:n_sam]
+		test_x = coerce(test_x, GrayImage)[1:n_sam]
+		test_y = coerce(test_y, Multiclass)[1:n_sam]
+	else
+		train_x = coerce(train_x, GrayImage)
+		train_y = coerce(train_y, Multiclass)
+		test_x = coerce(test_x, GrayImage)
+		test_y = coerce(test_y, Multiclass)
+	end
 
 	@assert scitype(train_x) <: AbstractVector{<:GrayImage}
 	@assert scitype(train_y) <: AbstractVector{<:Multiclass}
@@ -155,16 +169,16 @@ begin
 			BatchNorm(32, builder.σ),
 			Dropout(builder.dropout),
 			NeuralODE(Chain(
-				BatchNorm(32, builder.σ),
+				# BatchNorm(32, builder.σ),
 				Dropout(builder.dropout),
 				Dense(32, 16, builder.σ),
-				BatchNorm(16, builder.σ),
+				# BatchNorm(16, builder.σ),
 				Dropout(builder.dropout),
 				Dense(16, 16, builder.σ),
-				BatchNorm(16, builder.σ),
+				# BatchNorm(16, builder.σ),
 				Dropout(builder.dropout),
 				Dense(16, 32, builder.σ),
-				BatchNorm(32, builder.σ),
+				# BatchNorm(32, builder.σ),
 				Dropout(builder.dropout),
 			) |> f64, 0.0:1.0, Tsit5()),
 			x -> first(x.u),
@@ -202,7 +216,7 @@ begin
 end
 
 # ╔═╡ 58ffa080-cf63-43d9-bc40-d9fedb085755
-const ImgShort = ImgShortLite
+const ImgShort = ImgShortConv
 
 # ╔═╡ d0e5c847-6bd5-484d-9e62-24deb3a8f0a5
 begin
@@ -215,8 +229,12 @@ begin
 	f_mdl = IteratedModel(
 		model=ImageClassifier(
 			builder=ImgShort(),
-			batch_size=2^5,
-			acceleration=CPU1(),
+			finaliser=softmax,
+			optimiser=ADAM(),
+			loss=Flux.crossentropy,
+			epochs=2^4,
+			batch_size=2^12,
+			acceleration=(use_gpu ? CUDALibs() : CPU1()),
 		),
 		controls=[
 			Step(),
@@ -339,6 +357,7 @@ end
 # ╔═╡ Cell order:
 # ╠═97539bb6-c0b0-11eb-2d83-316749d179f1
 # ╠═baab9408-fe06-436d-8158-6ec55e1b49cf
+# ╠═5bafc48d-eb03-4625-8d87-17170133d999
 # ╠═e593f5a3-9c57-42e7-9ba5-fcf4f0c4bb76
 # ╠═3d5dac10-a6a9-4e13-b6c7-85c86d5f61ac
 # ╠═b48567da-38c0-4d01-b866-08413433d115
